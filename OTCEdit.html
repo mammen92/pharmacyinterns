@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Disease Information</title>
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #e9f4f7;
+            color: #333;
+            line-height: 1.8;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            color: #3b5998;
+            text-align: center;
+        }
+
+        form {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        .medication-section {
+            margin-bottom: 20px;
+        }
+
+        .medication-section h3 {
+            margin-bottom: 10px;
+        }
+
+        .brand-section {
+            margin-bottom: 10px;
+        }
+
+        .brand-section input[type="text"] {
+            width: calc(50% - 10px);
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Edit Disease Information</h1>
+    <form id="editDiseaseForm">
+        <label for="diseaseName">Disease Name</label>
+        <input type="text" id="diseaseName" name="diseaseName" required>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="4" required></textarea>
+
+        <div id="medicationsContainer">
+            <!-- Medications will be dynamically added here -->
+        </div>
+
+        <button type="button" onclick="addMedication()">Add Medication</button>
+
+        <label for="nonPharmacologicalMeasures">Non-Pharmacological Measures</label>
+        <textarea id="nonPharmacologicalMeasures" name="nonPharmacologicalMeasures" rows="4" required></textarea>
+
+        <label for="referralPoints">Referral Points</label>
+        <textarea id="referralPoints" name="referralPoints" rows="4" required></textarea>
+
+        <button type="submit">Save</button>
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const diseaseId = urlParams.get('id');
+            if (diseaseId) {
+                fetch(`/api/diseases/${diseaseId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('diseaseName').value = data.Disease;
+                        document.getElementById('description').value = data.Description;
+                        document.getElementById('nonPharmacologicalMeasures').value = data.NonPharmacologicalMeasures;
+                        document.getElementById('referralPoints').value = data.ReferralPoints;
+                        data.Medication.forEach(med => addMedication(med));
+                    })
+                    .catch(error => console.error('Error fetching disease info:', error));
+            }
+        });
+
+        function addMedication(med = {}) {
+            const medicationsContainer = document.getElementById('medicationsContainer');
+            const medicationSection = document.createElement('div');
+            medicationSection.className = 'medication-section';
+            medicationSection.innerHTML = `
+                <h3>Medication</h3>
+                <label for="genericName">Generic Name</label>
+                <input type="text" name="genericName" value="${med.GenericName || ''}" required>
+                <label for="doseAndDirection">Dose and Direction</label>
+                <textarea name="doseAndDirection" rows="2" required>${med.DoseAndDirection || ''}</textarea>
+                <label for="pregnancy">Pregnancy</label>
+                <input type="text" name="pregnancy" value="${med.Pregnancy ? 'Safe' : 'Not recommended'}" required>
+                <label for="breastfeeding">Breastfeeding</label>
+                <input type="text" name="breastfeeding" value="${med.Breastfeeding ? 'Safe' : 'Not recommended'}" required>
+                <label for="age">Age</label>
+                <input type="text" name="age" value="${med.Age || ''}" required>
+                <div class="brand-section">
+                    <h4>Brands</h4>
+                    ${med.Brands ? med.Brands.map(brand => `
+                        <div>
+                            <input type="text" name="brandName" value="${brand.BrandName || ''}" placeholder="Brand Name" required>
+                            <input type="text" name="brandImage" value="${brand.Image || ''}" placeholder="Brand Image URL" required>
+                        </div>
+                    `).join('') : ''}
+                </div>
+                <button type="button" onclick="addBrand(this)">Add Brand</button>
+            `;
+            medicationsContainer.appendChild(medicationSection);
+        }
+
+        function addBrand(button) {
+            const brandSection = button.previousElementSibling;
+            const brandDiv = document.createElement('div');
+            brandDiv.innerHTML = `
+                <input type="text" name="brandName" placeholder="Brand Name" required>
+                <input type="text" name="brandImage" placeholder="Brand Image URL" required>
+            `;
+            brandSection.appendChild(brandDiv);
+        }
+
+        document.getElementById('editDiseaseForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const diseaseData = {
+                Disease: formData.get('diseaseName'),
+                Description: formData.get('description'),
+                NonPharmacologicalMeasures: formData.get('nonPharmacologicalMeasures'),
+                ReferralPoints: formData.get('referralPoints'),
+                Medication: []
+            };
+
+            const medicationSections = document.querySelectorAll('.medication-section');
+            medicationSections.forEach(section => {
+                const medication = {
+                    GenericName: section.querySelector('input[name="genericName"]').value,
+                    DoseAndDirection: section.querySelector('textarea[name="doseAndDirection"]').value,
+                    Pregnancy: section.querySelector('input[name="pregnancy"]').value === 'Safe',
+                    Breastfeeding: section.querySelector('input[name="breastfeeding"]').value === 'Safe',
+                    Age: section.querySelector('input[name="age"]').value,
+                    Brands: []
+                };
+
+                const brandDivs = section.querySelectorAll('.brand-section div');
+                brandDivs.forEach(brandDiv => {
+                    const brand = {
+                        BrandName: brandDiv.querySelector('input[name="brandName"]').value,
+                        Image: brandDiv.querySelector('input[name="brandImage"]').value
+                    };
+                    medication.Brands.push(brand);
+                });
+
+                diseaseData.Medication.push(medication);
+            });
+
+            fetch(`/api/diseases/${urlParams.get('id')}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(diseaseData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Disease information updated successfully!');
+                window.location.href = '/'; // Redirect to the main page or another page
+            })
+            .catch(error => console.error('Error updating disease info:', error));
+        });
+    </script>
+</body>
+</html>
