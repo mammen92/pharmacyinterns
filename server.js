@@ -64,7 +64,6 @@ const Disease = mongoose.model("Disease", diseaseSchema);
 app.get("/api/diseases/:name", async (req, res) => {
   try {
     const diseaseName = req.params.name;
-    console.log(diseaseName);
     const disease = await Disease.findOne({ Disease: { $regex: new RegExp(diseaseName, "i") } });
     if (!disease) return res.status(404).json({ message: "Disease not found" });
     res.json(disease);
